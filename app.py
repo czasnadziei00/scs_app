@@ -1,21 +1,63 @@
 import json
-import requests
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
 # ------------------------------------------------------------
-# 1. Pobieranie ceny ze Stooq
+# 1. SCS 3.0 — profesjonalny scoring trendu
 # ------------------------------------------------------------
-def get_price(ticker):
-    try:
-        url = f"https://stooq.com/q/l/?s={ticker}.pl&i=d"
-        r = requests.get(url, timeout=5)
-        data = r.text.split(",")
-        price = float(data[6]) if len(data) > 6 else None
-        return price
-    except:
-        return None
+def calc_scs(ohlc_15m, ohlc_60m, ohlc_240m):
+    score = 0
+
+    # Trend kierunkowy
+    def trend_points(v):
+        if not v:
+            return 0
+        if "↑" in v:
+            return 2
+        if "↓" in v:
+            return -2
+        return 0
+
+    score += trend_points(ohlc_15m)
+    score += trend_points(ohlc_60m)
+    score += trend_points(ohlc_240m)
+
+    # Momentum
+    def momentum_points(v):
+        if not v or "%" not in v:
+            return 0
+        try:
+            val = float(v.replace("↑", "").replace("↓", "").replace("%", ""))
+            if val > 0.30:
+                return 2
+            if val < -0.30:
+                return -2
+        except:
+            return 0
+        return 0
+
+    score += momentum_points(ohlc_15m)
+    score += momentum_points(ohlc_60m)
+    score += momentum_points(ohlc_240m)
+
+    # Zgodność trendów
+    dirs = [("↑" in str(ohlc_15m)), ("↑" in str(ohlc_60m)), ("↑" in str(ohlc_240m))]
+    if all(dirs):
+        score += 4
+    dirs = [("↓" in str(ohlc_15m)), ("↓" in str(ohlc_60m)), ("↓" in str(ohlc_240m))]
+    if all(dirs):
+        score -= 4
+
+    # Sekwencja świec
+    if ohlc_15m and ohlc_60m:
+        if "↑" in ohlc_15m and "↑" in ohlc_60m:
+            score += 2
+        if "↓" in ohlc_15m and "↓" in ohlc_60m:
+            score -= 2
+
+    return max(0, min(20, score))
+
 
 # ------------------------------------------------------------
 # 2. Nowa struktura po wybiciu TP3
@@ -47,7 +89,7 @@ def load_history():
         return json.load(f)
 
 # ------------------------------------------------------------
-# 4. Zapis zmian OHLC / TP / BUY ZONE
+# 4. Zapis zmian
 # ------------------------------------------------------------
 @app.route("/update", methods=["POST"])
 def update():
@@ -60,6 +102,9 @@ def update():
     field = data["field"]
     value = data["value"]
 
+    if ticker not in history:
+        history[ticker] = {}
+
     history[ticker][field] = value
 
     with open("history.json", "w", encoding="utf-8") as f:
@@ -68,7 +113,26 @@ def update():
     return {"status": "ok"}
 
 # ------------------------------------------------------------
-# 5. Logika sygnałów
+# 5. Kolorowanie wierszy
+# ------------------------------------------------------------
+def get_row_class(signal):
+    if not signal:
+        return ""
+    s = signal.upper()
+    if "BUY ZONE" in s:
+        return "row-buyzone"
+    if "TP3" in s:
+        return "row-tp3"
+    if "TP2" in s:
+        return "row-tp2"
+    if "TP1" in s:
+        return "row-tp1"
+    if "NOWA STRUKTURA" in s or "TREND TRWA" in s:
+        return "row-newtrend"
+    return ""
+
+# ------------------------------------------------------------
+# 6. Logika sygnałów
 # ------------------------------------------------------------
 def process_ticker(name, data):
     last_price = data.get("last_price")
@@ -76,7 +140,9 @@ def process_ticker(name, data):
     ohlc_15m = data.get("ohlc_15m")
     ohlc_60m = data.get("ohlc_60m")
     ohlc_240m = data.get("ohlc_240m")
-    scs = data.get("scs", 0)
+
+    # SCS 3.0
+    scs = calc_scs(ohlc_15m, ohlc_60m, ohlc_240m)
 
     buy_zone_low = data.get("buy_zone_low")
     buy_zone_high = data.get("buy_zone_high")
@@ -84,41 +150,43 @@ def process_ticker(name, data):
     tp2 = data.get("tp2")
     tp3 = data.get("tp3")
 
-    ticker = name.split("(")[-1].replace(")", "")
-    price = get_price(ticker)
-    if price:
-        last_price = price
-
     signal = "czekaj"
 
-    # ------------------------------------------------------------
     # LOGIKA: wybicie TP3 → nowa struktura
-    # ------------------------------------------------------------
     if tp3 and last_price:
-        if last_price > tp3:
-            new_struct = update_structure_after_tp3(last_price)
+        try:
+            if float(last_price) > float(tp3):
+                new_struct = update_structure_after_tp3(float(last_price))
 
-            buy_zone_low = new_struct["buy_zone_low"]
-            buy_zone_high = new_struct["buy_zone_high"]
-            entry = new_struct["entry"]
-            tp1 = new_struct["tp1"]
-            tp2 = new_struct["tp2"]
-            tp3 = new_struct["tp3"]
+                buy_zone_low = new_struct["buy_zone_low"]
+                buy_zone_high = new_struct["buy_zone_high"]
+                entry = new_struct["entry"]
+                tp1 = new_struct["tp1"]
+                tp2 = new_struct["tp2"]
+                tp3 = new_struct["tp3"]
 
-            signal = "trend trwa — nowa struktura"
+                signal = "trend trwa — nowa struktura"
+        except:
+            pass
 
     # BUY ZONE
-    if buy_zone_low and buy_zone_high and last_price:
-        if buy_zone_low <= last_price <= buy_zone_high:
-            signal = "BUY ZONE"
+    try:
+        if buy_zone_low and buy_zone_high and last_price:
+            if float(buy_zone_low) <= float(last_price) <= float(buy_zone_high):
+                signal = "BUY ZONE"
+    except:
+        pass
 
     # TP
-    if tp1 and last_price and last_price >= tp1:
-        signal = "TP1"
-    if tp2 and last_price and last_price >= tp2:
-        signal = "TP2"
-    if tp3 and last_price and last_price >= tp3:
-        signal = "TP3 — możliwe wybicie"
+    try:
+        if tp1 and last_price and float(last_price) >= float(tp1):
+            signal = "TP1"
+        if tp2 and last_price and float(last_price) >= float(tp2):
+            signal = "TP2"
+        if tp3 and last_price and float(last_price) >= float(tp3):
+            signal = "TP3 — możliwe wybicie"
+    except:
+        pass
 
     return {
         "name": name,
@@ -134,7 +202,7 @@ def process_ticker(name, data):
     }
 
 # ------------------------------------------------------------
-# 6. Routing
+# 7. Routing
 # ------------------------------------------------------------
 @app.route("/")
 def index():
@@ -144,10 +212,12 @@ def index():
     for name, data in history.items():
         results.append(process_ticker(name, data))
 
-    return render_template("index.html", results=results)
+    results.sort(key=lambda x: (x["entry"] is None, x["entry"]), reverse=True)
+
+    return render_template("index.html", results=results, get_row_class=get_row_class)
 
 # ------------------------------------------------------------
-# 7. Start
+# 8. Start
 # ------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
