@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>System 4.97.5 – B3, SELL ≤ 8, DEBUG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            margin: 5px 0;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 4px 6px;
+            text-align: center;
+        }
+        th {
+            background: #222;
+        }
+        tr:nth-child(even) {
+            background: #181818;
+        }
+        tr:nth-child(odd) {
+            background: #141414;
+        }
+        .signal-buy {
+            color: #00ff7f;
+            font-weight: bold;
+        }
+        .signal-wait {
+            color: #cccccc;
+        }
+        .signal-sell {
+            color: #ff6666;
+            font-weight: bold;
+        }
+        .row-buy {
+            background: #102515 !important;
+        }
+        .row-sell {
+            background: #2a1414 !important;
+        }
+        input[type="number"] {
+            width: 80px;
+            padding: 2px;
+            background: #000;
+            color: #eee;
+            border: 1px solid #555;
+            font-size: 11px;
+        }
+        .small {
+            font-size: 11px;
+            color: #aaa;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 20px;
+        }
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        #debug-container {
+            margin-top: 25px;
+        }
+        #debug-table td, #debug-table th {
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+<h1>System 4.97.5 – B3, SELL ≤ 8, DEBUG</h1>
+<p class="small">Automatyczne sortowanie po SCS (malejąco). BUY = zielony, SELL = czerwony, WAIT = szary.</p>
+
+<div class="layout">
+    <div>
+        <div class="section">
+            <h2>Główna tabela</h2>
+            <table id="main-table">
+                <thead>
+                <tr>
+                    <th>spółka / ETF</th>
+                    <th>ostatnia cena</th>
+                    <th>nowa cena</th>
+                    <th>SCS</th>
+                    <th>BUY ZONE</th>
+                    <th>sygnał</th>
+                    <th>ENTRY</th>
+                    <th>TP1</th>
+                    <th>TP2</th>
+                    <th>TP3</th>
+                </tr>
+                </thead>
+                <tbody id="main-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="section">
+            <h2>Aktywne pozycje</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>spółka / ETF</th>
+                    <th>ENTRY</th>
+                    <th>cena</th>
+                    <th>zysk %</th>
+                    <th>SCS</th>
+                    <th>TP1</th>
+                    <th>TP2</th>
+                    <th>TP3</th>
+                </tr>
+                </thead>
+                <tbody id="active-body"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Kandydaci BUY</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>spółka / ETF</th>
+                    <th>cena</th>
+                    <th>SCS</th>
+                    <th>BUY ZONE</th>
+                    <th>sygnał</th>
+                </tr>
+                </thead>
+                <tbody id="candidates-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="debug-container" class="section">
+    <h2>DEBUG BUY ZONE</h2>
+    <table id="debug-table">
+        <thead>
+        <tr>
+            <th>spółka / ETF</th>
+            <th>ostatnia cena</th>
+            <th>SCS</th>
+            <th>LOW</th>
+            <th>CLOSE (0.2%)</th>
+            <th>BUY ZONE</th>
+            <th>bounce</th>
+            <th>powód korekty</th>
+            <th>powód sygnału</th>
+        </tr>
+        </thead>
+        <tbody id="debug-body"></tbody>
+    </table>
+</div>
+
+<script>
+    const instruments = [
+        "Alior Bank (ALR)",
+        "Allegro.eu (ALE)",
+        "Asseco Poland (ACP)",
+        "Budimex (BDX)",
+        "CD Projekt (CDR)",
+        "Dino Polska (DNP)",
+        "KGHM Polska Miedź (KGH)",
+        "Kruk (KRU)",
+        "LPP (LPP)",
+        "mBank (MBK)",
+        "Modivo (CCC)",
+        "Pekao (PEO)",
+        "Pepco Group (PCO)",
+        "PKN Orlen (PKN)",
+        "PKO Bank Polski (PKO)",
+        "PZU (PZU)",
+        "BNP Paribas Bank Polska (BNP)",
+        "Bank Handlowy (BHW)",
+        "Beta ETF WIG20TR (BETAMWIG20TR)",
+        "Beta ETF mWIG40TR (BETAMWIG40TR)"
+    ];
+
+    const mainBody = document.getElementById('main-body');
+    const activeBody = document.getElementById('active-body');
+    const candidatesBody = document.getElementById('candidates-body');
+    const debugBody = document.getElementById('debug-body');
+
+    function createMainRow(name) {
+        const tr = document.createElement('tr');
+        tr.dataset.instrument = name;
+
+        const tdName = document.createElement('td');
+        tdName.textContent = name;
+
+        const tdLast = document.createElement('td');
+        tdLast.className = 'last-price';
+        tdLast.textContent = '-';
+
+        const tdNew = document.createElement('td');
+        const inputPrice = document.createElement('input');
+        inputPrice.type = 'number';
+        inputPrice.step = '0.01';
+        inputPrice.className = 'price-input';
+        inputPrice.addEventListener('focus', function () {
+            this.select();
+        });
+        inputPrice.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                sendPrice(name, this.value);
+            }
+        });
+        tdNew.appendChild(inputPrice);
+
+        const tdSCS = document.createElement('td');
+        tdSCS.className = 'scs-cell';
+        tdSCS.textContent = '0';
+
+        const tdBZ = document.createElement('td');
+        tdBZ.className = 'bz-cell';
+        tdBZ.textContent = '-';
+
+        const tdSignal = document.createElement('td');
+        tdSignal.className = 'signal-cell signal-wait';
+        tdSignal.textContent = 'WAIT';
+
+        const tdEntry = document.createElement('td');
+        const inputEntry = document.createElement('input');
+        inputEntry.type = 'number';
+        inputEntry.step = '0.01';
+        inputEntry.className = 'entry-input';
+        inputEntry.addEventListener('focus', function () {
+            this.select();
+        });
+        inputEntry.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                sendEntry(name, this.value);
+            }
+        });
+        tdEntry.appendChild(inputEntry);
+
+        const tdTP1 = document.createElement('td');
+        tdTP1.className = 'tp1-cell';
+        tdTP1.textContent = '-';
+
+        const tdTP2 = document.createElement('td');
+        tdTP2.className = 'tp2-cell';
+        tdTP2.textContent = '-';
+
+        const tdTP3 = document.createElement('td');
+        tdTP3.className = 'tp3-cell';
+        tdTP3.textContent = '-';
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdLast);
+        tr.appendChild(tdNew);
+        tr.appendChild(tdSCS);
+        tr.appendChild(tdBZ);
+        tr.appendChild(tdSignal);
+        tr.appendChild(tdEntry);
+        tr.appendChild(tdTP1);
+        tr.appendChild(tdTP2);
+        tr.appendChild(tdTP3);
+
+        mainBody.appendChild(tr);
+    }
+
+    function initTable() {
+        instruments.forEach(inst => createMainRow(inst));
+        refreshData();
+        setInterval(refreshData, 5000);
+    }
+
+    function refreshData() {
+        fetch('/get_data')
+            .then(r => r.json())
+            .then(data => {
+
+                // sortowanie po SCS malejąco
+                const sortedInstruments = [...instruments].sort((a, b) => {
+                    const sa = data[a]?.scs ?? 0;
+                    const sb = data[b]?.scs ?? 0;
+                    return sb - sa;
+                });
+
+                // przebuduj główną tabelę wg sortowania
+                mainBody.innerHTML = '';
+                sortedInstruments.forEach(name => createMainRow(name));
+
+                // wypełnianie danych
+                sortedInstruments.forEach(name => {
+                    const tr = mainBody.querySelector(`tr[data-instrument="${name}"]`);
+                    if (!tr) return;
+
+                    const instData = data[name];
+                    const lastCell = tr.querySelector('.last-price');
+                    const scsCell = tr.querySelector('.scs-cell');
+                    const bzCell = tr.querySelector('.bz-cell');
+                    const signalCell = tr.querySelector('.signal-cell');
+                    const entryInput = tr.querySelector('.entry-input');
+                    const tp1Cell = tr.querySelector('.tp1-cell');
+                    const tp2Cell = tr.querySelector('.tp2-cell');
+                    const tp3Cell = tr.querySelector('.tp3-cell');
+
+                    let lastPrice = null;
+
+                    if (instData.history.length > 0) {
+                        lastPrice = instData.history.at(-1).price;
+                        lastCell.textContent = lastPrice.toFixed(2);
+                    }
+
+                    scsCell.textContent = instData.scs;
+
+                    if (instData.buy_zone) {
+                        bzCell.textContent =
+                            instData.buy_zone.low.toFixed(2) +
+                            " – " +
+                            instData.buy_zone.high.toFixed(2);
+                    }
+
+                    tr.classList.remove('row-buy', 'row-sell');
+                    signalCell.classList.remove('signal-buy', 'signal-sell', 'signal-wait');
+
+                    if (instData.signal === "BUY") {
+                        signalCell.textContent = "BUY";
+                        signalCell.classList.add('signal-buy');
+                        tr.classList.add('row-buy');
+                    } else if (instData.signal === "SELL") {
+                        signalCell.textContent = "SELL";
+                        signalCell.classList.add('signal-sell');
+                        tr.classList.add('row-sell');
+                    } else {
+                        signalCell.textContent = "WAIT";
+                        signalCell.classList.add('signal-wait');
+                    }
+
+                    if (instData.entry !== null) entryInput.value = instData.entry;
+
+                    tp1Cell.textContent = instData.tp1 ?? "-";
+                    tp2Cell.textContent = instData.tp2 ?? "-";
+                    tp3Cell.textContent = instData.tp3 ?? "-";
+                });
+
+                // aktywne pozycje
+                activeBody.innerHTML = '';
+                instruments.forEach(name => {
+                    const instData = data[name];
+                    if (!instData.entry) return;
+
+                    const lastPrice = instData.history.at(-1)?.price;
+                    if (!lastPrice) return;
+
+                    const profitPct = ((lastPrice - instData.entry) / instData.entry) * 100;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${name}</td>
+                        <td>${instData.entry.toFixed(2)}</td>
+                        <td>${lastPrice.toFixed(2)}</td>
+                        <td>${profitPct.toFixed(2)} %</td>
+                        <td>${instData.scs}</td>
+                        <td>${instData.tp1 ?? "-"}</td>
+                        <td>${instData.tp2 ?? "-"}</td>
+                        <td>${instData.tp3 ?? "-"}</td>
+                    `;
+                    activeBody.appendChild(tr);
+                });
+
+                // kandydaci BUY
+                candidatesBody.innerHTML = '';
+                instruments.forEach(name => {
+                    const instData = data[name];
+                    if (instData.signal !== "BUY") return;
+
+                    const lastPrice = instData.history.at(-1)?.price;
+                    if (!lastPrice) return;
+
+                    const bz = instData.buy_zone;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${name}</td>
+                        <td>${lastPrice.toFixed(2)}</td>
+                        <td>${instData.scs}</td>
+                        <td>${bz ? bz.low.toFixed(2) + " – " + bz.high.toFixed(2) : "-"}</td>
+                        <td class="signal-buy">BUY</td>
+                    `;
+                    candidatesBody.appendChild(tr);
+                });
+
+                // DEBUG
+                debugBody.innerHTML = '';
+                instruments.forEach(name => {
+                    const instData = data[name];
+                    const dbg = instData.debug;
+
+                    const lastPrice = instData.history.at(-1)?.price;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${name}</td>
+                        <td>${lastPrice ? lastPrice.toFixed(2) : "-"}</td>
+                        <td>${instData.scs}</td>
+                        <td>${dbg.low ? dbg.low.toFixed(2) : "-"}</td>
+                        <td>${dbg.close_threshold ? dbg.close_threshold.toFixed(2) : "-"}</td>
+                        <td>${dbg.bz_low ? dbg.bz_low.toFixed(2) + " – " + dbg.bz_high.toFixed(2) : "-"}</td>
+                        <td>${dbg.bounce ? "YES" : "NO"}</td>
+                        <td>${dbg.reason ?? ""}</td>
+                        <td>${dbg.signal_reason ?? ""}</td>
+                    `;
+                    debugBody.appendChild(tr);
+                });
+
+            });
+    }
+
+    function sendPrice(instrument, value) {
+        if (!value) return;
+        value = value.replace(",", ".");
+        const price = parseFloat(value);
+        if (isNaN(price) || price <= 0) return;
+
+        fetch('/update_price', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({instrument, price})
+        }).then(() => refreshData());
+    }
+
+    function sendEntry(instrument, value) {
+        value = value.replace(",", ".");
+        if (value === "") {
+            fetch('/set_entry', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({instrument, entry: ""})
+            }).then(() => refreshData());
+            return;
+        }
+
+        const entry = parseFloat(value);
+        if (isNaN(entry) || entry <= 0) {
+            fetch('/set_entry', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({instrument, entry: 0})
+            }).then(() => refreshData());
+            return;
+        }
+
+        fetch('/set_entry', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({instrument, entry})
+        }).then(() => refreshData());
+    }
+
+    document.addEventListener('DOMContentLoaded', initTable);
+</script>
+</body>
+</html>
