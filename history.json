@@ -1,379 +1,180 @@
 {
     "Alior Bank (ALR)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Allegro.eu (ALE)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Asseco Poland (ACP)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Budimex (BDX)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "CD Projekt (CDR)": {
-        "history": [
-            {
-                "price": 250.0,
-                "time": "2026-04-19 14:00:29"
-            },
-            {
-                "price": 251.0,
-                "time": "2026-04-19 14:00:32"
-            },
-            {
-                "price": 252.0,
-                "time": "2026-04-19 14:00:36"
-            },
-            {
-                "price": 253.0,
-                "time": "2026-04-19 14:00:41"
-            },
-            {
-                "price": 252.0,
-                "time": "2026-04-19 14:00:44"
-            },
-            {
-                "price": 250.0,
-                "time": "2026-04-19 14:00:49"
-            },
-            {
-                "price": 251.0,
-                "time": "2026-04-19 14:00:53"
-            },
-            {
-                "price": 255.0,
-                "time": "2026-04-19 14:00:56"
-            },
-            {
-                "price": 251.0,
-                "time": "2026-04-19 14:01:03"
-            },
-            {
-                "price": 253.0,
-                "time": "2026-04-19 14:01:08"
-            },
-            {
-                "price": 253.5,
-                "time": "2026-04-19 14:01:12"
-            },
-            {
-                "price": 253.0,
-                "time": "2026-04-19 14:01:17"
-            },
-            {
-                "price": 253.9,
-                "time": "2026-04-19 14:01:20"
-            },
-            {
-                "price": 252.0,
-                "time": "2026-04-19 14:01:24"
-            },
-            {
-                "price": 251.0,
-                "time": "2026-04-19 14:01:28"
-            },
-            {
-                "price": 252.0,
-                "time": "2026-04-19 14:01:31"
-            },
-            {
-                "price": 253.0,
-                "time": "2026-04-19 14:01:36"
-            },
-            {
-                "price": 255.0,
-                "time": "2026-04-19 14:01:59"
-            },
-            {
-                "price": 256.0,
-                "time": "2026-04-19 14:02:05"
-            },
-            {
-                "price": 255.0,
-                "time": "2026-04-19 14:02:08"
-            },
-            {
-                "price": 251.0,
-                "time": "2026-04-19 14:02:12"
-            },
-            {
-                "price": 250.0,
-                "time": "2026-04-19 14:02:15"
-            },
-            {
-                "price": 253.0,
-                "time": "2026-04-19 14:02:18"
-            },
-            {
-                "price": 254.0,
-                "time": "2026-04-19 14:02:21"
-            },
-            {
-                "price": 256.0,
-                "time": "2026-04-19 14:02:25"
-            },
-            {
-                "price": 257.0,
-                "time": "2026-04-19 14:02:27"
-            },
-            {
-                "price": 256.9,
-                "time": "2026-04-19 14:03:29"
-            },
-            {
-                "price": 256.72,
-                "time": "2026-04-19 14:03:34"
-            },
-            {
-                "price": 256.54,
-                "time": "2026-04-19 14:03:40"
-            },
-            {
-                "price": 256.44,
-                "time": "2026-04-19 14:03:46"
-            },
-            {
-                "price": 256.52,
-                "time": "2026-04-19 14:03:48"
-            },
-            {
-                "price": 256.33,
-                "time": "2026-04-19 14:03:52"
-            },
-            {
-                "price": 256.21,
-                "time": "2026-04-19 14:03:54"
-            },
-            {
-                "price": 256.31,
-                "time": "2026-04-19 14:03:57"
-            },
-            {
-                "price": 256.4,
-                "time": "2026-04-19 14:03:59"
-            },
-            {
-                "price": 256.48,
-                "time": "2026-04-19 14:04:01"
-            },
-            {
-                "price": 256.6,
-                "time": "2026-04-19 14:04:02"
-            },
-            {
-                "price": 256.68,
-                "time": "2026-04-19 14:04:04"
-            },
-            {
-                "price": 256.82,
-                "time": "2026-04-19 14:04:06"
-            },
-            {
-                "price": 256.93,
-                "time": "2026-04-19 14:04:08"
-            },
-            {
-                "price": 257.05,
-                "time": "2026-04-19 14:04:09"
-            },
-            {
-                "price": 256.96,
-                "time": "2026-04-19 14:04:21"
-            },
-            {
-                "price": 257.07,
-                "time": "2026-04-19 14:04:23"
-            },
-            {
-                "price": 256.94,
-                "time": "2026-04-19 14:04:25"
-            }
-        ],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
-        "scs": 8
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
+        "scs": 0
     },
     "Dino Polska (DNP)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "KGHM Polska Miedź (KGH)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Kruk (KRU)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "LPP (LPP)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "mBank (MBK)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Modivo (CCC)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Pekao (PEO)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Pepco Group (PCO)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "PKN Orlen (PKN)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "PKO Bank Polski (PKO)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "PZU (PZU)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "BNP Paribas Bank Polska (BNP)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Bank Handlowy (BHW)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Beta ETF WIG20TR (BETAMWIG20TR)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     },
     "Beta ETF mWIG40TR (BETAMWIG40TR)": {
-        "history": [],
         "entry": null,
-        "tp1": null,
-        "tp2": null,
-        "tp3": null,
-        "buy_zone": null,
-        "signal": "WAIT",
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
+        "scs": 0
+    },
+
+    "Selvita (SEL)": {
+        "entry": null,
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
+        "scs": 0
+    },
+
+    "Kęty (KTY)": {
+        "entry": null,
+        "last_price": null,
+        "ohlc_15m": null,
+        "ohlc_60m": null,
+        "ohlc_240m": null,
         "scs": 0
     }
 }
