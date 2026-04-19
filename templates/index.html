@@ -2,206 +2,127 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Trading System 4.99 — intraday</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 
     <style>
         body {
-            background: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #eee;
         }
-
         table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            font-size: 14px;
         }
-
-        th, td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #333;
-            text-align: center;
-            font-size: 13px;
-        }
-
         th {
-            background: #111;
+            position: sticky;
+            top: 0;
+            background-color: #222;
+            z-index: 10;
         }
-
-        tr:hover {
-            background: #111;
-        }
-
-        .clickable {
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .signal {
-            font-weight: bold;
-        }
-
-        .tp-box {
-            font-size: 11px;
-            color: #aaa;
-            line-height: 14px;
+        .modal-backdrop.show {
+            opacity: 0.1 !important;
         }
     </style>
 </head>
-
 <body>
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Trading Dashboard</h2>
 
-<h2>Trading System 4.99 — intraday</h2>
+    <table class="table table-dark table-striped table-bordered align-middle text-center">
+        <thead>
+            <tr>
+                <th>Spółka</th>
+                <th>Cena</th>
+                <th>SCS</th>
+                <th>15m</th>
+                <th>60m</th>
+                <th>240m</th>
+                <th>Buy Zone</th>
+                <th>Entry</th>
+                <th>TP</th>
+                <th>Sygnał</th>
+                <th>Edytuj</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.name }}</td>
+                <td>{{ r.price }}</td>
+                <td>{{ r.scs }}</td>
+                <td>{{ r.m15 }}</td>
+                <td>{{ r.m60 }}</td>
+                <td>{{ r.m240 }}</td>
+                <td>{{ r.buy_zone }}</td>
+                <td>{{ r.entry }}</td>
+                <td>{{ r.tp }}</td>
+                <td>{{ r.signal }}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm" onclick="openModal('{{ r.name }}')">OHLC</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-<table>
-    <tr>
-        <th>Nazwa</th>
-        <th>Cena</th>
-        <th>SCS</th>
-        <th>15m</th>
-        <th>60m</th>
-        <th>240m</th>
-        <th>BUY ZONE</th>
-        <th>Widełki</th>
-        <th>Entry</th>
-        <th>TP1/TP2/TP3</th>
-        <th>Sygnał</th>
-    </tr>
+<!-- Modal OHLC -->
+<div class="modal fade" id="ohlcModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Edytuj OHLC</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input id="ohlcInput" class="form-control" placeholder="Wpisz wartość...">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="saveOHLC()">Zapisz</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-    {% for row in rows %}
-    <tr>
-
-        <!-- NAZWA -->
-        <td>{{ row.name }}</td>
-
-        <!-- CENA -->
-        <td class="clickable"
-            onclick="updatePrice('{{ row.name }}')">
-            {{ row.last_price if row.last_price is not none else '-' }}
-        </td>
-
-        <!-- SCS -->
-        <td>{{ row.scs }}</td>
-
-        <!-- 15m -->
-        <td class="clickable"
-            onclick="updateOHLC('{{ row.name }}', '15m')">
-            {{ row.trend15_icon|safe }}
-            {% if row.ohlc_15m %}
-                <div style="font-size:10px; color:#888;">
-                    O: {{ row.ohlc_15m.o }}<br>
-                    H: {{ row.ohlc_15m.h }}<br>
-                    L: {{ row.ohlc_15m.l }}<br>
-                    C: {{ row.ohlc_15m.c }}
-                </div>
-            {% endif %}
-        </td>
-
-        <!-- 60m -->
-        <td class="clickable"
-            onclick="updateOHLC('{{ row.name }}', '60m')">
-            {{ row.trend60_icon|safe }}
-            {% if row.ohlc_60m %}
-                <div style="font-size:10px; color:#888;">
-                    O: {{ row.ohlc_60m.o }}<br>
-                    H: {{ row.ohlc_60m.h }}<br>
-                    L: {{ row.ohlc_60m.l }}<br>
-                    C: {{ row.ohlc_60m.c }}
-                </div>
-            {% endif %}
-        </td>
-
-        <!-- 240m -->
-        <td class="clickable"
-            onclick="updateOHLC('{{ row.name }}', '240m')">
-            {{ row.trend240_icon|safe }}
-            {% if row.ohlc_240m %}
-                <div style="font-size:10px; color:#888;">
-                    O: {{ row.ohlc_240m.o }}<br>
-                    H: {{ row.ohlc_240m.h }}<br>
-                    L: {{ row.ohlc_240m.l }}<br>
-                    C: {{ row.ohlc_240m.c }}
-                </div>
-            {% endif %}
-        </td>
-
-        <!-- BUY ZONE -->
-        <td>{{ row.buy_zone }}</td>
-
-        <!-- WIDEŁKI -->
-        <td>
-            {% if row.low_wide and row.high_wide %}
-                {{ row.low_wide|round(2) }} – {{ row.high_wide|round(2) }}
-            {% else %}
-                -
-            {% endif %}
-        </td>
-
-        <!-- ENTRY -->
-        <td class="clickable"
-            onclick="updateEntry('{{ row.name }}', '{{ row.entry if row.entry is not none else '' }}')">
-            {{ row.entry if row.entry is not none else '-' }}
-        </td>
-
-        <!-- TP1/TP2/TP3 -->
-        <td class="tp-box">
-            {% if row.tp1 %}
-                {{ row.tp1|round(2) }}<br>
-                {{ row.tp2|round(2) }}<br>
-                {{ row.tp3|round(2) }}
-            {% else %}
-                -
-            {% endif %}
-        </td>
-
-        <!-- SYGNAŁ -->
-        <td class="signal" style="color: {{ row.signal_color }};">
-            {{ row.signal_text }}
-        </td>
-
-    </tr>
-    {% endfor %}
-</table>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-function postForm(url, data) {
-    fetch(url, {
+let currentTicker = null;
+let currentField = null;
+
+function openModal(ticker) {
+    currentTicker = ticker;
+    currentField = "ohlc_15m";
+
+    const modal = new bootstrap.Modal(document.getElementById('ohlcModal'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    modal.show();
+}
+
+function saveOHLC() {
+    const value = document.getElementById("ohlcInput").value;
+
+    fetch("/update", {
         method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: new URLSearchParams(data)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ticker: currentTicker,
+            field: currentField,
+            value: value
+        })
     }).then(() => {
         location.reload();
     });
 }
 
-function updatePrice(name) {
-    const val = prompt("Nowa cena dla: " + name);
-    if (val === null || val.trim() === "") return;
-    postForm("/update_price", {name: name, price: val});
-}
-
-function updateOHLC(name, tf) {
-    const o = prompt("OHLC " + tf + " — O (open) dla: " + name);
-    if (o === null || o.trim() === "") return;
-
-    const h = prompt("OHLC " + tf + " — H (high) dla: " + name);
-    if (h === null || h.trim() === "") return;
-
-    const l = prompt("OHLC " + tf + " — L (low) dla: " + name);
-    if (l === null || l.trim() === "") return;
-
-    const c = prompt("OHLC " + tf + " — C (close) dla: " + name);
-    if (c === null || c.trim() === "") return;
-
-    postForm("/update_ohlc", {name: name, tf: tf, o: o, h: h, l: l, c: c});
-}
-
-function updateEntry(name, current) {
-    const val = prompt("Entry dla: " + name + " (puste = usuń)", current || "");
-    if (val === null) return;
-    postForm("/update_entry", {name: name, entry: val});
-}
+// Zapobiega zamykaniu modala przy zmianie karty / minimalizacji
+window.addEventListener("visibilitychange", function(e) {
+    // nic nie robimy — modal ma pozostać otwarty
+});
 </script>
 
 </body>
