@@ -1,294 +1,262 @@
 import json
-from flask import Flask, request, jsonify, render_template
-from datetime import datetime
-import os
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-DATA_FILE = "history.json"
+HISTORY_FILE = "history.json"
 
-# ---------------------------------------------------------
-# Helper: load/save JSON
-# ---------------------------------------------------------
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+# -------------------------
+# PLIK Z DANYMI
+# -------------------------
+def load_history():
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ---------------------------------------------------------
-# Instruments
-# ---------------------------------------------------------
+def save_history(history):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=4, ensure_ascii=False)
 
-INSTRUMENTS = [
-    "Alior Bank (ALR)",
-    "Allegro.eu (ALE)",
-    "Asseco Poland (ACP)",
-    "Budimex (BDX)",
-    "CD Projekt (CDR)",
-    "Dino Polska (DNP)",
-    "KGHM Polska Miedź (KGH)",
-    "Kruk (KRU)",
-    "LPP (LPP)",
-    "mBank (MBK)",
-    "Modivo (CCC)",
-    "Pekao (PEO)",
-    "Pepco Group (PCO)",
-    "PKN Orlen (PKN)",
-    "PKO Bank Polski (PKO)",
-    "PZU (PZU)",
-    "BNP Paribas Bank Polska (BNP)",
-    "Bank Handlowy (BHW)",
-    "Beta ETF WIG20TR (BETAMWIG20TR)",
-    "Beta ETF mWIG40TR (BETAMWIG40TR)"
-]
 
-# ---------------------------------------------------------
-# SCS 4.97 PRO — profil B3 (agresywny)
-# ---------------------------------------------------------
+# -------------------------
+# LOGIKA TRENDÓW
+# -------------------------
+def trend_from_ohlc(ohlc):
+    if not ohlc or any(k not in ohlc or ohlc[k] is None for k in ["o", "c"]):
+        return "-"
+    o = float(ohlc["o"])
+    c = float(ohlc["c"])
+    if c > o:
+        return "UP"
+    elif c < o:
+        return "DOWN"
+    else:
+        return "FLAT"
 
-def sma(values, length):
-    if len(values) < length:
-        return None
-    return sum(values[-length:]) / length
 
-def calculate_scs(history):
-    prices = [h["price"] for h in history]
-    if len(prices) < 2:
-        return 0
+def trend_icon(trend):
+    if trend == "UP":
+        return '<span style="color:#00ff00;">▲</span>'
+    if trend == "DOWN":
+        return '<span style="color:#ff4444;">▼</span>'
+    if trend == "FLAT":
+        return '<span style="color:#aaaaaa;">■</span>'
+    return '<span style="color:#555555;">-</span>'
 
-    last = prices[-1]
-    prev = prices[-2]
 
-    scs = 0
+# -------------------------
+# BUY ZONE + WIDEŁKI
+# -------------------------
+def compute_buy_zone_and_widely(ohlc_15m):
+    if not ohlc_15m or any(k not in ohlc_15m or ohlc_15m[k] is None for k in ["l", "c"]):
+        return "NO", None, None
+    low = float(ohlc_15m["l"])
+    close = float(ohlc_15m["c"])
+    low_wide = low * 1.002
+    high_wide = low * 1.004
+    buy_zone = "YES" if close <= low_wide else "NO"
+    return buy_zone, low_wide, high_wide
 
-    sma5 = sma(prices, 5)
-    sma10 = sma(prices, 10)
 
-    # 1) trend krótki — agresywny
-    if sma5 is not None and last > sma5 * 0.998:
-        scs += 4
+# -------------------------
+# TP1 / TP2 / TP3
+# -------------------------
+def compute_tps(entry):
+    if entry is None:
+        return None, None, None
+    entry = float(entry)
+    tp1 = entry * 1.01
+    tp2 = entry * 1.02
+    tp3 = entry * 1.03
+    return tp1, tp2, tp3
 
-    # 2) trend średni — agresywny
-    if sma10 is not None and last > sma10 * 0.999:
-        scs += 4
 
-    # 3) momentum — agresywne
-    if last >= prev:
-        scs += 4
+# -------------------------
+# SYGNAŁ PRO (z SELL)
+# -------------------------
+def generuj_sygnal(scs, buy_zone, price, low_wide, high_wide,
+                   t15, t60, t240, in_position):
+    # SELL przy odwróceniu trendu
+    if in_position and scs is not None:
+        if t15 == "DOWN" and t60 != "UP" and scs <= 8:
+            return "odwrócenie — rozważ sprzedaż", "red"
+        # fallback: sam SCS
+        if scs <= 8:
+            return "odwrócenie — rozważ sprzedaż", "red"
 
-    # 4) siła — agresywna
-    if sma10 is not None and last > sma10 * 1.005:
-        scs += 4
+    # jeśli brakuje danych do BUY → WAIT
+    if price is None or low_wide is None or high_wide is None:
+        return "czekaj", "gray"
 
-    # 5) stabilność — agresywna
-    change = abs(last - prev) / prev
-    if change < 0.03:
-        scs += 4
+    # BUY
+    if buy_zone == "YES" and low_wide <= price <= high_wide:
+        if t15 == "UP" and t60 == "UP" and t240 == "UP":
+            return "BUY — cena w widełkach", "green"
 
-    return scs
+    # PRAWIE BUY
+    if buy_zone == "NO":
+        if abs(price - low_wide) / low_wide < 0.01:  # 1%
+            if t60 == "UP" and t240 == "UP":
+                return f"czekaj do {low_wide:.2f}–{high_wide:.2f}", "yellow"
 
-# ---------------------------------------------------------
-# Swing detector C2 + odbicie 0.2% + DEBUG
-# ---------------------------------------------------------
+    # KONFLIKT TRENDÓW
+    if t15 == "DOWN" and t60 == "UP" and t240 == "UP":
+        return "sygnał niejednoznaczny — czekaj", "blue"
 
-def detect_correction_debug(history):
-    debug = {
-        "has_low": False,
-        "low": None,
-        "close_threshold": None,
-        "bounce": False,
-        "bz_low": None,
-        "bz_high": None,
-        "reason": ""
-    }
+    # WAIT
+    return "czekaj", "gray"
 
-    if len(history) < 5:
-        debug["reason"] = "not enough data (min 5 prices)"
-        return None, debug
 
-    prices = [h["price"] for h in history]
+# -------------------------
+# BUDOWANIE WIERSZY TABELI
+# -------------------------
+def prepare_rows():
+    history = load_history()
+    rows = []
 
-    low_idx = None
-    for i in range(len(prices) - 3, 1, -1):
-        if prices[i] < prices[i - 1] and prices[i] < prices[i + 1]:
-            low_idx = i
-            break
+    for name, data in history.items():
+        last_price = data.get("last_price")
+        scs = data.get("scs", 0)
 
-    if low_idx is None:
-        debug["reason"] = "no swing low detected"
-        return None, debug
+        ohlc_15m = data.get("ohlc_15m") or {}
+        ohlc_60m = data.get("ohlc_60m") or {}
+        ohlc_240m = data.get("ohlc_240m") or {}
 
-    low_price = prices[low_idx]
-    debug["has_low"] = True
-    debug["low"] = low_price
+        t15 = trend_from_ohlc(ohlc_15m)
+        t60 = trend_from_ohlc(ohlc_60m)
+        t240 = trend_from_ohlc(ohlc_240m)
 
-    close_threshold = low_price * 1.002  # 0.2%
-    debug["close_threshold"] = close_threshold
+        buy_zone, low_wide, high_wide = compute_buy_zone_and_widely(ohlc_15m)
 
-    close_price = None
-    for j in range(low_idx + 1, len(prices)):
-        if prices[j] >= close_threshold:
-            close_price = prices[j]
-            break
+        entry = data.get("entry")
+        in_position = entry is not None
 
-    if close_price is None:
-        debug["reason"] = "no bounce above CLOSE threshold"
-        return None, debug
+        tp1, tp2, tp3 = compute_tps(entry)
 
-    debug["bounce"] = True
-    debug["bz_low"] = low_price
-    debug["bz_high"] = close_price
-    debug["reason"] = "correction and bounce detected"
+        signal_text, signal_color = generuj_sygnal(
+            scs=scs,
+            buy_zone=buy_zone,
+            price=last_price,
+            low_wide=low_wide,
+            high_wide=high_wide,
+            t15=t15,
+            t60=t60,
+            t240=t240,
+            in_position=in_position
+        )
 
-    correction = {
-        "low": low_price,
-        "close": close_price,
-        "bz_low": low_price,
-        "bz_high": close_price
-    }
-    return correction, debug
+        rows.append({
+            "name": name,
+            "last_price": last_price,
+            "scs": scs,
 
-# ---------------------------------------------------------
-# Init structure
-# ---------------------------------------------------------
+            "ohlc_15m": ohlc_15m,
+            "ohlc_60m": ohlc_60m,
+            "ohlc_240m": ohlc_240m,
 
-def ensure_instrument(data, instrument):
-    if instrument not in data:
-        data[instrument] = {
-            "history": [],
-            "entry": None,
-            "tp1": None,
-            "tp2": None,
-            "tp3": None,
-            "buy_zone": None,
-            "signal": "WAIT",
-            "scs": 0,
-            "debug": {}
-        }
+            "trend15": t15,
+            "trend60": t60,
+            "trend240": t240,
 
-# ---------------------------------------------------------
-# Routes
-# ---------------------------------------------------------
+            "trend15_icon": trend_icon(t15),
+            "trend60_icon": trend_icon(t60),
+            "trend240_icon": trend_icon(t240),
 
+            "buy_zone": buy_zone,
+            "low_wide": low_wide,
+            "high_wide": high_wide,
+
+            "entry": entry,
+            "tp1": tp1,
+            "tp2": tp2,
+            "tp3": tp3,
+
+            "signal_text": signal_text,
+            "signal_color": signal_color
+        })
+
+    # sortowanie: najpierw trend15 (UP > FLAT > DOWN), potem SCS
+    trend_score = {"UP": 2, "FLAT": 1, "DOWN": 0, "-": -1}
+    rows = sorted(
+        rows,
+        key=lambda x: (
+            trend_score.get(x["trend15"], -1),
+            x["scs"] if x["scs"] is not None else -999
+        ),
+        reverse=True
+    )
+
+    return rows
+
+
+# -------------------------
+# ROUTES
+# -------------------------
 @app.route("/")
-def home():
-    return render_template("index.html")
+def index():
+    rows = prepare_rows()
+    return render_template("index.html", rows=rows)
+
 
 @app.route("/update_price", methods=["POST"])
 def update_price():
-    data = load_data()
-    payload = request.json
+    name = request.form["name"]
+    price = request.form["price"]
 
-    instrument = payload["instrument"]
-    price = float(payload["price"])
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    history = load_history()
+    if name in history:
+        history[name]["last_price"] = float(price)
+        save_history(history)
 
-    ensure_instrument(data, instrument)
+    return ("", 204)
 
-    data[instrument]["history"].append({
-        "price": price,
-        "time": timestamp
-    })
 
-    # SCS B3
-    scs = calculate_scs(data[instrument]["history"])
-    data[instrument]["scs"] = scs
+@app.route("/update_ohlc", methods=["POST"])
+def update_ohlc():
+    name = request.form["name"]
+    tf = request.form["tf"]  # "15m", "60m", "240m"
+    o = request.form["o"]
+    h = request.form["h"]
+    l = request.form["l"]
+    c = request.form["c"]
 
-    # Swing + BUY ZONE + DEBUG
-    correction, dbg = detect_correction_debug(data[instrument]["history"])
-    signal = "WAIT"
-    signal_reason = ""
+    key = None
+    if tf == "15m":
+        key = "ohlc_15m"
+    elif tf == "60m":
+        key = "ohlc_60m"
+    elif tf == "240m":
+        key = "ohlc_240m"
 
-    entry = data[instrument]["entry"]
-
-    if correction:
-        data[instrument]["buy_zone"] = {
-            "low": correction["bz_low"],
-            "high": correction["bz_high"]
+    history = load_history()
+    if name in history and key is not None:
+        history[name][key] = {
+            "o": float(o),
+            "h": float(h),
+            "l": float(l),
+            "c": float(c)
         }
+        save_history(history)
 
-        bz_low = correction["bz_low"]
-        bz_high = correction["bz_high"]
+    return ("", 204)
 
-        # SELL logiczny
-        if entry is not None and scs <= 8:
-            signal = "SELL"
-            signal_reason = "SELL: SCS <= 8 with active entry"
 
-        # BUY logiczny
-        elif scs >= 12 and bz_low <= price <= bz_high:
-            signal = "BUY"
-            signal_reason = "BUY: SCS >= 12 and price in BUY ZONE"
+@app.route("/update_entry", methods=["POST"])
+def update_entry():
+    name = request.form["name"]
+    entry = request.form.get("entry")  # może być puste
 
+    history = load_history()
+    if name in history:
+        if entry == "" or entry is None:
+            history[name]["entry"] = None
         else:
-            signal = "WAIT"
-            if scs < 12:
-                signal_reason = "WAIT: SCS < 12"
-            elif price < bz_low:
-                signal_reason = "WAIT: price below BUY ZONE"
-            elif price > bz_high:
-                signal_reason = "WAIT: price above BUY ZONE"
-            else:
-                signal_reason = "WAIT: conditions not met"
+            history[name]["entry"] = float(entry)
+        save_history(history)
 
-    else:
-        data[instrument]["buy_zone"] = None
-        signal = "WAIT"
-        signal_reason = "WAIT: " + (dbg["reason"] or "no correction")
+    return ("", 204)
 
-    data[instrument]["signal"] = signal
-
-    dbg["signal_reason"] = signal_reason
-    dbg["scs"] = scs
-    dbg["last_price"] = price
-    data[instrument]["debug"] = dbg
-
-    save_data(data)
-    return jsonify({"status": "ok"})
-
-@app.route("/set_entry", methods=["POST"])
-def set_entry():
-    data = load_data()
-    payload = request.json
-
-    instrument = payload["instrument"]
-    entry_value = payload["entry"]
-
-    ensure_instrument(data, instrument)
-
-    # CZYSZCZENIE ENTRY — NOWOŚĆ W 4.97.5
-    if entry_value in ["", None] or float(entry_value) <= 0:
-        data[instrument]["entry"] = None
-        data[instrument]["tp1"] = None
-        data[instrument]["tp2"] = None
-        data[instrument]["tp3"] = None
-        data[instrument]["signal"] = "WAIT"
-        save_data(data)
-        return jsonify({"status": "entry_cleared"})
-
-    # NORMALNE USTAWIENIE ENTRY
-    entry = float(entry_value)
-    data[instrument]["entry"] = entry
-    data[instrument]["tp1"] = round(entry * 1.01, 2)
-    data[instrument]["tp2"] = round(entry * 1.02, 2)
-    data[instrument]["tp3"] = round(entry * 1.03, 2)
-
-    save_data(data)
-    return jsonify({"status": "ok"})
-
-@app.route("/get_data", methods=["GET"])
-def get_data():
-    data = load_data()
-    for inst in INSTRUMENTS:
-        ensure_instrument(data, inst)
-    save_data(data)
-    return jsonify(data)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
